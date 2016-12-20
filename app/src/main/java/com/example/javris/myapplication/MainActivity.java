@@ -1,5 +1,6 @@
 package com.example.javris.myapplication;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
@@ -58,7 +59,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 searchDevice();
                 break;
             case R.id.button_connect:
-
+                Intent intent = new Intent(this, PlugActivity.class);
+                startActivity(intent);
                 break;
         }
     }

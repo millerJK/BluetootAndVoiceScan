@@ -8,7 +8,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.net.Uri;
-import android.os.Environment;
 import android.os.Handler;
 import android.text.TextUtils;
 import android.util.Log;
@@ -244,7 +243,7 @@ public class BluetoothScanUtil {
      * @param device
      */
     private void connectDevice(BluetoothDevice device) {
-    //// TODO: 2016/12/22  can't connenct romate device  连接远程设备
+        //// TODO: 2016/12/22  can't connenct romate device  连接远程设备
 //        Log.e(TAG, "start connect with remote device and uuid was  " + UUID_STR);
 //        try {
 //            mBluetoothSocket = device.createRfcommSocketToServiceRecord(mUUID);
@@ -264,13 +263,13 @@ public class BluetoothScanUtil {
     }
 
     /**
-     * 通过蓝牙设备选择
+     * 通过蓝牙设备分享文件
      */
-    public void shareFile() {
+    public void shareFile(File file) {
         Intent intent = new Intent();
         intent.setAction(Intent.ACTION_SEND);
         intent.setType("image/png");
-        intent.putExtra(Intent.EXTRA_STREAM, Uri.fromFile(new File(Environment.getExternalStorageDirectory().toString() + "/wifi_config.log")));
+        intent.putExtra(Intent.EXTRA_STREAM, Uri.fromFile(file));
         context.startActivity(intent);
     }
 
@@ -338,7 +337,7 @@ public class BluetoothScanUtil {
     private void discoveryStarted() {
 
         if (!handler.hasMessages(SEARCH_TIMEOUT) && timeout != 0) {
-                handler.sendEmptyMessageDelayed(SEARCH_TIMEOUT, timeout);
+            handler.sendEmptyMessageDelayed(SEARCH_TIMEOUT, timeout);
         }
 
         if (listener != null)

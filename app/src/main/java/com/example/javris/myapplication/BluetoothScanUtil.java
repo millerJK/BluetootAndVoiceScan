@@ -7,11 +7,13 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.net.Uri;
+import android.os.Environment;
 import android.os.Handler;
 import android.text.TextUtils;
 import android.util.Log;
 
-import java.io.IOException;
+import java.io.File;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.HashMap;
@@ -26,13 +28,14 @@ public class BluetoothScanUtil {
 
     private static final int SEARCH_TIMEOUT = 0;
 
+    //不同设备之间连接的UUID不同，具体参考android_UUID_standard文件
     private static final String UUID_STR = "00001101-0000-1000-8000-00805F9B34FB";
 
     private UUID mUUID;
-    //The discovery process usually involves an inquiry scan of about 12
-    //seconds, followed by a page scan of each new device to retrieve its
-    //Bluetooth name.Specific please refer to startDiscovery() API. My phone (MI 4) will stop after 23s.
+
     private boolean isCancelBySystem;
+
+    //处在扫描设备状态用户，终止了设备扫描，开始设备连接
     private boolean isCancelByUser;
     private boolean isTimeout;
 
@@ -93,7 +96,7 @@ public class BluetoothScanUtil {
         IntentFilter filter = new IntentFilter();
 
         filter.addAction(BluetoothDevice.ACTION_FOUND);
-        filter.addAction(BluetoothDevice.ACTION_NAME_CHANGED);
+//        filter.addAction(BluetoothDevice.ACTION_NAME_CHANGED);
         filter.addAction(BluetoothAdapter.ACTION_STATE_CHANGED);
         filter.addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED);
         filter.addAction(BluetoothAdapter.ACTION_DISCOVERY_STARTED);
@@ -112,13 +115,23 @@ public class BluetoothScanUtil {
     /**
      * 启动搜索蓝牙设备
      *
-     * @param limitTime             蓝牙搜索时间
+     * @param limitTime             蓝牙搜索时间 系统蓝牙设备默认扫描12秒，
+     *                              但是这也不是准确的值，我的MI4手机默认是扫描时间在23秒左右
+     *                              ，估计不同的手机默认的扫描时间不同。总之，如果你设置的
+     *                              limitTime大于默认扫描时间的话，则在蓝牙扫描停止之后重新启动继续扫描
+     *                              直到limitTime.若果limitTime小于0的话，则表示不设置扫描时间。
+     *                              同时建议您至少设置扫描时间为10s(扫描时间断了，设备都搜索不到...)要设置
+     *                              就设置30s吧！
      * @param onScanReceiveListener 蓝牙设备回调
      */
     public void startDevSearch(int limitTime, OnScanReceiveListener onScanReceiveListener) {
 
+        if (limitTime < 0)
+            timeout = 0;
+        else
+            timeout = limitTime;
+
         isTimeout = false;
-        timeout = limitTime;
         isCancelByUser = false;
         listener = onScanReceiveListener;
 
@@ -231,23 +244,34 @@ public class BluetoothScanUtil {
      * @param device
      */
     private void connectDevice(BluetoothDevice device) {
-
-        if (adapter.isDiscovering())
-            adapter.cancelDiscovery();
-        Log.e(TAG, "start connect with remote device and uuid was  " + UUID_STR);
-        try {
-            mBluetoothSocket = device.createRfcommSocketToServiceRecord(mUUID);
-            Log.e(TAG, "start connect with device waiting.......");
-            mBluetoothSocket.connect();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+    //// TODO: 2016/12/22  can't connenct romate device  连接远程设备
+//        Log.e(TAG, "start connect with remote device and uuid was  " + UUID_STR);
+//        try {
+//            mBluetoothSocket = device.createRfcommSocketToServiceRecord(mUUID);
+//            Log.e(TAG, "start connect with device waiting.......");
+//            mBluetoothSocket.connect();
+////            mBluetoothSocket.getOutputStream();
+//
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
     }
 
     public BluetoothSocket getCurrentSocket() {
         if (mBluetoothSocket.isConnected())
             return mBluetoothSocket;
         return null;
+    }
+
+    /**
+     * 通过蓝牙设备选择
+     */
+    public void shareFile() {
+        Intent intent = new Intent();
+        intent.setAction(Intent.ACTION_SEND);
+        intent.setType("image/png");
+        intent.putExtra(Intent.EXTRA_STREAM, Uri.fromFile(new File(Environment.getExternalStorageDirectory().toString() + "/wifi_config.log")));
+        context.startActivity(intent);
     }
 
 
@@ -274,8 +298,8 @@ public class BluetoothScanUtil {
                 case BluetoothAdapter.ACTION_DISCOVERY_FINISHED:
                     discoveryFinish();
                     break;
-                case BluetoothDevice.ACTION_NAME_CHANGED:
-                    break;
+//                case BluetoothDevice.ACTION_NAME_CHANGED:
+//                    break;
                 case BluetoothDevice.ACTION_ACL_DISCONNECTED:
                     disConnected(intent);
                     break;
@@ -309,14 +333,13 @@ public class BluetoothScanUtil {
     }
 
     /**
-     * 搜索设备正式开始le
+     * 搜索设备正式开始
      */
     private void discoveryStarted() {
 
-        if (!handler.hasMessages(SEARCH_TIMEOUT)) {
-            handler.removeMessages(SEARCH_TIMEOUT);
+        if (!handler.hasMessages(SEARCH_TIMEOUT) && timeout != 0) {
+                handler.sendEmptyMessageDelayed(SEARCH_TIMEOUT, timeout);
         }
-        handler.sendEmptyMessageDelayed(SEARCH_TIMEOUT, timeout);
 
         if (listener != null)
             listener.onOpendedBtooth();
